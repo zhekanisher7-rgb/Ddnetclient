@@ -6,6 +6,44 @@ Visuals only — no cheats, aimbots, or gameplay advantages.
 
 ---
 
+## Downloads / Скачать
+
+**Release:** [v20.0-forja-neon](https://github.com/zhekanisher7-rgb/Ddnetclient/releases/tag/v20.0-forja-neon)
+
+| Platform | Asset | Install |
+|----------|-------|---------|
+| **Windows** | `Forja-DDNet-Neon-win64.zip` | Unzip anywhere → run `DDNet.exe` (keep `data/` next to it). |
+| **macOS** | `Forja-DDNet-Neon-macos.dmg` | Open DMG → drag **DDNet** to Applications (or run from the volume). |
+| **Linux** | `Forja-DDNet-Neon-linux_x86_64.tar.xz` | `tar -xf … && cd Forja-… && ./DDNet` |
+
+### Windows (EN / RU)
+1. Download the `.zip` from the release page.  
+2. Extract the folder (e.g. with Explorer or 7-Zip).  
+3. Run `DDNet.exe` inside the extracted folder. Do not separate the exe from `data/`.  
+1. Скачайте `.zip` со страницы релиза.  
+2. Распакуйте архив.  
+3. Запустите `DDNet.exe` из папки; рядом должна остаться `data/`.
+
+### macOS (EN / RU)
+1. Download the `.dmg`.  
+2. Open it and launch **DDNet** (or copy the app to Applications).  
+3. If Gatekeeper blocks it: right-click → Open (first run), or allow in System Settings → Privacy & Security.  
+1. Скачайте `.dmg`.  
+2. Откройте и запустите **DDNet** (или перетащите в Программы).  
+3. Если macOS блокирует: ПКМ → Открыть, либо Разрешения в настройках безопасности.
+
+### Linux (EN / RU)
+1. Download the `.tar.xz`.  
+2. `tar -xf Forja-DDNet-Neon-linux_x86_64.tar.xz && cd DDNet-*` (folder name may vary).  
+3. Run `./DDNet` from that directory (`data/` must be beside the binary).  
+1. Скачайте `.tar.xz`.  
+2. Распакуйте и перейдите в каталог.  
+3. Запустите `./DDNet` из этой папки.
+
+CI builds (Windows / macOS / Linux) are produced by [`.github/workflows/release.yml`](.github/workflows/release.yml) on tags `v*` and via **Actions → Release → Run workflow**.
+
+---
+
 ## What changed / Что изменилось
 
 | Area | Change |
@@ -52,7 +90,8 @@ sudo apt install build-essential cmake ninja-build libsdl2-dev \
   libogg-dev libopus-dev libopusfile-dev libwavpack-dev \
   libsqlite3-dev libssl-dev libnotify-dev python3 rustc cargo
 
-cd /workspace/ddnet-neon   # or your clone
+git clone --recursive https://github.com/zhekanisher7-rgb/Ddnetclient.git
+cd Ddnetclient
 cmake -Bbuild -GNinja \
   -DAUTOUPDATE=OFF \
   -DVIDEORECORDER=OFF \
@@ -68,12 +107,14 @@ cmake --build build
 
 Flags used here: client-only, no autoupdater (fork), no FFmpeg video recorder, no Vulkan (optional deps skipped).
 
+Prebuilt packages from CI use `package_default` (zip / dmg / tar.xz) with `AUTOUPDATE=OFF`.
+
 ---
 
 ## Run / Запуск
 
 ```bash
-cd /workspace/ddnet-neon/build
+cd build   # or extracted package dir
 ./DDNet
 # or
 ./DDNet -f /path/to/neon.cfg
@@ -83,7 +124,6 @@ cd /workspace/ddnet-neon/build
 Smoke-test without a real display:
 
 ```bash
-cd /workspace/ddnet-neon/build
 xvfb-run -a ./DDNet -s 'quit'   # if xvfb is installed
 ```
 

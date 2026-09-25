@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Upload artifacts to GitHub Release"
+        type: boolean
+        default: true
+      release_tag:
+        description: "Release tag to attach assets to"
+        type: string
+        default: "v20.0-forja-neon"
+  push:
+    tags:
+      - "v*"
+    branches:
+      - master
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/master' }}
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_HTTP_MULTIPLEXING: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            cmake-args: -A x64 -DEXCEPTION_HANDLING=ON -DVULKAN=OFF -DAUTOUPDATE=OFF
+            package-file: "*-win64.zip"
+            artifact-name: forja-neon-windows
+          - name: macos
+            os: macos-latest
+            cmake-args: -G Ninja -DAUTOUPDATE=OFF -DVULKAN=OFF
+            package-file: "*-macos.dmg"
+            artifact-name: forja-neon-macos
+          - name: linux
+            os: ubuntu-latest
+            cmake-args: -G Ninja -DAUTOUPDATE=OFF -DVULKAN=OFF
+            package-file: "*-linux_x86_64.tar.xz"
+            artifact-name: forja-neon-linux
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Prepare Linux
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config \
+            libsdl2-dev libfreetype6-dev libglew-dev \
+            libpng-dev libsqlite3-dev libcurl4-openssl-dev \
+            libavcodec-dev libavformat-dev libavutil-dev \
+            libswresample-dev libswscale-dev libx264-dev \
+            libogg-dev libopus-dev libopusfile-dev libwavpack-dev \
+            libssl-dev libnotify-dev \
+            rustc cargo
+
+      - name: Prepare macOS
+        if: matrix.name == 'macos'
+        run: |
+          brew update
+          brew install ninja pkg-config sdl2 ffmpeg || true
+          brew upgrade freetype || true
+          pip3 install --break-system-packages dmgbuild pyobjc-framework-Quartz
+          echo /Library/Frameworks/Python.framework/Versions/3.12/bin >> "$GITHUB_PATH"
+          # Match official DDNet CI: prefer Xcode over stale CLT
+          sudo rm -rf /Library/Developer/CommandLineTools || true
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+          workspaces: ./
+
+      - name: Configure & build Release
+        shell: bash
+        run: |
+          mkdir -p release
+          cd release
+          cmake ${{ matrix.cmake-args }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=. \
+            ..
+          cmake --build . --config Release --parallel
+
+      - name: Package
+        shell: bash
+        run: |
+          cd release
+          cmake --build . --config Release --target package_default
+          mkdir -p artifacts
+          # Rename to Forja branding while keeping platform suffix
+          shopt -s nullglob
+          for f in ${{ matrix.package-file }}; do
+            base=$(basename "$f")
+            # DDNet-20.0-win64.zip -> Forja-DDNet-Neon-win64.zip
+            renamed=$(echo "$base" | sed -E 's/^DDNet-[^-]+-/Forja-DDNet-Neon-/; s/^DDNet-/Forja-DDNet-Neon-/')
+            mv "$f" "artifacts/$renamed"
+            echo "Packaged: $renamed"
+            ls -lh "artifacts/$renamed"
+          done
+          ls -la artifacts/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: release/artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+    permissions:
+      contents: write
+    steps:
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.release_tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing to tag: $TAG"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: forja-neon-*
+          merge-multiple: true
+
+      - name: List assets
+        run: find dist -type f -ls
+
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "Forja DDNet Neon ${TAG}" \
+              --notes "Forja DDNet Neon builds (Windows / macOS / Linux). See NEON.md."
+          fi
+
+      - name: Upload assets to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          # Prefer new Win/mac assets; also upload Linux if built.
+          # --clobber replaces same-named assets; keeps other assets (existing Linux) if names differ.
+          gh release upload "$TAG" dist/* \
+            --repo "${{ github.repository }}" \
+            --clobber
+          echo "Uploaded to https://github.com/${{ github.repository }}/releases/tag/${TAG}"

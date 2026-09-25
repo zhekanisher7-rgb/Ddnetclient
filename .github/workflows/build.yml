@@ -1,11 +1,8 @@
 name: Build
 
 on:
-  push:
-    branches-ignore:
-      - gh-readonly-queue/**
-  pull_request:
-  merge_group:
+  # Disabled for Forja Neon fork — use release.yml for packaging CI.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
