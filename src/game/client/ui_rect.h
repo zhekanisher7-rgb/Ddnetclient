@@ -145,6 +145,12 @@ public:
 	void DrawOutline(ColorRGBA Color) const;
 
 	/**
+	 * Soft multi-pass outer glow (fake neon) behind *this* rect.
+	 * Strength is typically 0..1; higher = larger/brighter halo.
+	 */
+	void DrawNeonGlow(ColorRGBA Color, int Corners, float Rounding, float Strength) const;
+
+	/**
 	 * Returns the top-left position of *this* CUIRect as a vec2.
 	 *
 	 * @return Top-left position as vec2.

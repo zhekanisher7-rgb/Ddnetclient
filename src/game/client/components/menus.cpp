@@ -45,6 +45,22 @@
 
 using namespace std::chrono_literals;
 
+
+ColorRGBA CMenus::ForjaNeonAccentColor()
+{
+	return color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true));
+}
+
+void CMenus::DrawForjaNeonGlow(const CUIRect *pRect, int Corners, float Rounding, float Boost)
+{
+	if(!g_Config.m_FjNeon || pRect == nullptr)
+		return;
+	const float Strength = (g_Config.m_FjNeonStrength / 100.0f) * Boost;
+	if(Strength <= 0.01f)
+		return;
+	pRect->DrawNeonGlow(ForjaNeonAccentColor(), Corners, Rounding, Strength);
+}
+
 ColorRGBA CMenus::ms_GuiColor;
 ColorRGBA CMenus::ms_ColorTabbarInactiveOutgame;
 ColorRGBA CMenus::ms_ColorTabbarActiveOutgame;
@@ -127,8 +143,29 @@ int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText,
 	CUIRect Text = *pRect;
 
 	if(Checked)
-		Color = ColorRGBA(0.6f, 0.6f, 0.6f, 0.5f);
+	{
+		if(g_Config.m_FjNeon)
+		{
+			const ColorRGBA Accent = ForjaNeonAccentColor();
+			Color = ColorRGBA(Accent.r * 0.35f, Accent.g * 0.35f, Accent.b * 0.35f, 0.55f);
+		}
+		else
+			Color = ColorRGBA(0.6f, 0.6f, 0.6f, 0.5f);
+	}
+	else if(g_Config.m_FjNeon && Color.r > 0.9f && Color.g > 0.9f && Color.b > 0.9f)
+	{
+		// Default bright button wash → darker neon-friendly panel
+		Color = ColorRGBA(0.05f, 0.05f, 0.07f, 0.55f);
+	}
+	else if(g_Config.m_FjNeon && Color.r < 0.05f && Color.g < 0.05f && Color.b < 0.05f)
+	{
+		// Already-black start-menu style buttons: slightly deeper
+		Color = ColorRGBA(0.02f, 0.02f, 0.04f, std::max(Color.a, 0.35f));
+	}
 	Color.a *= Ui()->ButtonColorMul(pButtonContainer);
+
+	const float GlowBoost = Checked ? 1.15f : (Ui()->HotItem() == pButtonContainer ? 1.0f : 0.7f);
+	DrawForjaNeonGlow(pRect, Corners, Rounding, GlowBoost);
 
 	pRect->Draw(Color, Corners, Rounding);
 
@@ -190,6 +227,11 @@ int CMenus::DoButton_MenuTab(CButtonContainer *pButtonContainer, const char *pTe
 		pAnimator->m_Time = Time;
 	}
 
+	{
+		const float TabGlow = Checked ? 1.2f : (MouseInside ? 1.0f : 0.55f);
+		DrawForjaNeonGlow(&Rect, Corners, EdgeRounding, TabGlow);
+	}
+
 	if(Checked)
 	{
 		ColorRGBA ColorMenuTab = ms_ColorTabbarActive;
@@ -197,6 +239,11 @@ int CMenus::DoButton_MenuTab(CButtonContainer *pButtonContainer, const char *pTe
 			ColorMenuTab = *pActiveColor;
 
 		Rect.Draw(ColorMenuTab, Corners, EdgeRounding);
+		if(g_Config.m_FjNeon)
+		{
+			const ColorRGBA Accent = ForjaNeonAccentColor();
+			Rect.Draw(Accent.WithAlpha(0.18f), Corners, EdgeRounding);
+		}
 	}
 	else
 	{
@@ -207,6 +254,11 @@ int CMenus::DoButton_MenuTab(CButtonContainer *pButtonContainer, const char *pTe
 				HoverColorMenuTab = *pHoverColor;
 
 			Rect.Draw(HoverColorMenuTab, Corners, EdgeRounding);
+			if(g_Config.m_FjNeon && pHoverColor == nullptr)
+			{
+				const ColorRGBA Accent = ForjaNeonAccentColor();
+				Rect.Draw(Accent.WithAlpha(0.12f), Corners, EdgeRounding);
+			}
 		}
 		else
 		{
@@ -2432,26 +2484,60 @@ void CMenus::UpdateColors()
 {
 	ms_GuiColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
 
-	ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f);
-	ms_ColorTabbarActiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f);
-	ms_ColorTabbarHoverOutgame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f);
+	if(g_Config.m_FjNeon)
+	{
+		// Darker chrome; accents come from DrawForjaNeonGlow / overlays
+		const ColorRGBA Accent = ForjaNeonAccentColor();
+		ms_GuiColor = ColorRGBA(
+			ms_GuiColor.r * 0.45f + Accent.r * 0.08f,
+			ms_GuiColor.g * 0.45f + Accent.g * 0.08f,
+			ms_GuiColor.b * 0.45f + Accent.b * 0.08f,
+			std::min(1.0f, ms_GuiColor.a * 1.05f));
 
-	const float ColorIngameScaleI = 0.5f;
-	const float ColorIngameScaleA = 0.2f;
+		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.40f);
+		ms_ColorTabbarActiveOutgame = ColorRGBA(0.02f, 0.02f, 0.04f, 0.72f);
+		ms_ColorTabbarHoverOutgame = Accent.WithAlpha(0.22f);
 
-	ms_ColorTabbarInactiveIngame = ColorRGBA(
-		ms_GuiColor.r * ColorIngameScaleI,
-		ms_GuiColor.g * ColorIngameScaleI,
-		ms_GuiColor.b * ColorIngameScaleI,
-		ms_GuiColor.a * 0.8f);
+		const float ColorIngameScaleI = 0.28f;
+		const float ColorIngameScaleA = 0.12f;
 
-	ms_ColorTabbarActiveIngame = ColorRGBA(
-		ms_GuiColor.r * ColorIngameScaleA,
-		ms_GuiColor.g * ColorIngameScaleA,
-		ms_GuiColor.b * ColorIngameScaleA,
-		ms_GuiColor.a);
+		ms_ColorTabbarInactiveIngame = ColorRGBA(
+			ms_GuiColor.r * ColorIngameScaleI,
+			ms_GuiColor.g * ColorIngameScaleI,
+			ms_GuiColor.b * ColorIngameScaleI,
+			ms_GuiColor.a * 0.9f);
 
-	ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
+		ms_ColorTabbarActiveIngame = ColorRGBA(
+			ms_GuiColor.r * ColorIngameScaleA + Accent.r * 0.15f,
+			ms_GuiColor.g * ColorIngameScaleA + Accent.g * 0.15f,
+			ms_GuiColor.b * ColorIngameScaleA + Accent.b * 0.15f,
+			ms_GuiColor.a);
+
+		ms_ColorTabbarHoverIngame = Accent.WithAlpha(0.45f);
+	}
+	else
+	{
+		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f);
+		ms_ColorTabbarActiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f);
+		ms_ColorTabbarHoverOutgame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f);
+
+		const float ColorIngameScaleI = 0.5f;
+		const float ColorIngameScaleA = 0.2f;
+
+		ms_ColorTabbarInactiveIngame = ColorRGBA(
+			ms_GuiColor.r * ColorIngameScaleI,
+			ms_GuiColor.g * ColorIngameScaleI,
+			ms_GuiColor.b * ColorIngameScaleI,
+			ms_GuiColor.a * 0.8f);
+
+		ms_ColorTabbarActiveIngame = ColorRGBA(
+			ms_GuiColor.r * ColorIngameScaleA,
+			ms_GuiColor.g * ColorIngameScaleA,
+			ms_GuiColor.b * ColorIngameScaleA,
+			ms_GuiColor.a);
+
+		ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
+	}
 }
 
 void CMenus::RenderBackground()

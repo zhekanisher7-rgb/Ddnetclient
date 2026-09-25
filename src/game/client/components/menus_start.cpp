@@ -2,6 +2,8 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "menus_start.h"
 
+#include <base/color.h>
+
 #include <engine/client/updater.h>
 #include <engine/font_icons.h>
 #include <engine/graphics.h>
@@ -32,6 +34,29 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	IGraphics::CQuadItem QuadItem(MainView.w / 2 - 170, 60, 360, 103);
 	Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
+
+	// Forja Neon community mark (not an official DDNet build)
+	{
+		CUIRect BrandMark;
+		BrandMark.x = MainView.w / 2 - 90.0f;
+		BrandMark.y = 155.0f;
+		BrandMark.w = 180.0f;
+		BrandMark.h = 22.0f;
+		if(g_Config.m_FjNeon)
+		{
+			const ColorRGBA Accent = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true));
+			BrandMark.DrawNeonGlow(Accent, IGraphics::CORNER_ALL, 6.0f, g_Config.m_FjNeonStrength / 100.0f);
+			BrandMark.Draw(ColorRGBA(0.02f, 0.02f, 0.04f, 0.65f), IGraphics::CORNER_ALL, 6.0f);
+			BrandMark.Draw(Accent.WithAlpha(0.20f), IGraphics::CORNER_ALL, 6.0f);
+		}
+		else
+		{
+			BrandMark.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.35f), IGraphics::CORNER_ALL, 6.0f);
+		}
+		SLabelProperties BrandProps;
+		BrandProps.SetColor(g_Config.m_FjNeon ? color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true)) : ColorRGBA(1.0f, 1.0f, 1.0f, 0.85f));
+		Ui()->DoLabel(&BrandMark, "Forja Neon", 14.0f, TEXTALIGN_MC, BrandProps);
+	}
 
 	const float Rounding = 10.0f;
 	const float VMargin = MainView.w / 2 - 190.0f;

@@ -4,6 +4,8 @@
 
 #include <engine/graphics.h>
 
+#include <algorithm>
+
 IGraphics *CUIRect::ms_pGraphics = nullptr;
 
 void CUIRect::HSplitMid(CUIRect *pTop, CUIRect *pBottom, float Spacing) const
@@ -188,4 +190,23 @@ void CUIRect::DrawOutline(ColorRGBA Color) const
 	ms_pGraphics->SetColor(Color);
 	ms_pGraphics->LinesDraw(aArray, std::size(aArray));
 	ms_pGraphics->LinesEnd();
+}
+
+void CUIRect::DrawNeonGlow(ColorRGBA Color, int Corners, float Rounding, float Strength) const
+{
+	if(Strength <= 0.01f || Color.a <= 0.0f)
+		return;
+
+	const float Clamped = std::clamp(Strength, 0.0f, 1.5f);
+	for(int Pass = 3; Pass >= 1; --Pass)
+	{
+		const float Expand = Pass * (1.5f + Clamped * 3.5f);
+		const float Alpha = Color.a * (0.06f + Clamped * 0.14f) / static_cast<float>(Pass);
+		CUIRect Glow;
+		Glow.x = x - Expand;
+		Glow.y = y - Expand;
+		Glow.w = w + Expand * 2.0f;
+		Glow.h = h + Expand * 2.0f;
+		Glow.Draw(Color.WithAlpha(Alpha), Corners, Rounding + Expand * 0.45f);
+	}
 }

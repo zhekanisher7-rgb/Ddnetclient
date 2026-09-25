@@ -43,6 +43,36 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
 
 	CUIRect TabBar, LeftView, RightView, Button;
 
+	// ***** Forja Neon (client fork visuals) ***** //
+	{
+		CUIRect NeonBox;
+		MainView.HSplitTop(78.0f, &NeonBox, &MainView);
+		NeonBox.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, g_Config.m_FjNeon ? 0.45f : 0.25f), IGraphics::CORNER_ALL, 5.0f);
+		if(g_Config.m_FjNeon)
+			DrawForjaNeonGlow(&NeonBox, IGraphics::CORNER_ALL, 5.0f, 0.6f);
+		NeonBox.Margin(6.0f, &NeonBox);
+
+		CUIRect NeonTitle, NeonRow;
+		NeonBox.HSplitTop(18.0f, &NeonTitle, &NeonBox);
+		Ui()->DoLabel(&NeonTitle, "Forja Neon", 16.0f, TEXTALIGN_ML);
+
+		NeonBox.HSplitTop(4.0f, nullptr, &NeonBox);
+		NeonBox.HSplitTop(20.0f, &NeonRow, &NeonBox);
+		if(DoButton_CheckBox(&g_Config.m_FjNeon, Localize("Neon glow accents"), g_Config.m_FjNeon, &NeonRow))
+			g_Config.m_FjNeon ^= 1;
+
+		NeonBox.HSplitTop(4.0f, nullptr, &NeonBox);
+		NeonBox.HSplitTop(20.0f, &NeonRow, &NeonBox);
+		Ui()->DoScrollbarOption(&g_Config.m_FjNeonStrength, &g_Config.m_FjNeonStrength, &NeonRow, Localize("Neon strength"), 0, 100);
+
+		MainView.HSplitTop(8.0f, nullptr, &MainView);
+
+		static CButtonContainer s_FjNeonColorReset;
+		const ColorRGBA NeonDefault = color_cast<ColorRGBA>(ColorHSLA(0xE600FF96u, true));
+		DoLine_ColorPicker(&s_FjNeonColorReset, 25.0f, 13.0f, 2.0f, &MainView, Localize("Neon accent color"), &g_Config.m_FjNeonColor, NeonDefault, false, nullptr, true);
+		MainView.HSplitTop(6.0f, nullptr, &MainView);
+	}
+
 	MainView.HSplitTop(20.0f, &TabBar, &MainView);
 	const float TabWidth = TabBar.w / (float)NUMBER_OF_APPEARANCE_TABS;
 	static CButtonContainer s_aPageTabs[NUMBER_OF_APPEARANCE_TABS] = {};

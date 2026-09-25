@@ -2,6 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "ui_listbox.h"
 
+#include <base/color.h>
 #include <base/vmath.h>
 
 #include <engine/config.h>
@@ -166,11 +167,31 @@ CListboxItem CListBox::DoNextItem(const void *pId, bool Selected, float CornerRa
 			}
 		}
 
-		Item.m_Rect.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, m_Active ? 0.5f : 0.33f), IGraphics::CORNER_ALL, CornerRadius);
+		if(g_Config.m_FjNeon)
+		{
+			const ColorRGBA Accent = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true));
+			const float Strength = (g_Config.m_FjNeonStrength / 100.0f) * (m_Active ? 1.15f : 0.85f);
+			Item.m_Rect.DrawNeonGlow(Accent, IGraphics::CORNER_ALL, CornerRadius, Strength);
+			Item.m_Rect.Draw(Accent.WithAlpha(m_Active ? 0.38f : 0.24f), IGraphics::CORNER_ALL, CornerRadius);
+		}
+		else
+		{
+			Item.m_Rect.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, m_Active ? 0.5f : 0.33f), IGraphics::CORNER_ALL, CornerRadius);
+		}
 	}
 	if(Ui()->HotItem() == pId && !m_ScrollRegion.Animating())
 	{
-		Item.m_Rect.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.33f), IGraphics::CORNER_ALL, CornerRadius);
+		if(g_Config.m_FjNeon)
+		{
+			const ColorRGBA Accent = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true));
+			const float Strength = g_Config.m_FjNeonStrength / 100.0f * 0.7f;
+			Item.m_Rect.DrawNeonGlow(Accent, IGraphics::CORNER_ALL, CornerRadius, Strength);
+			Item.m_Rect.Draw(Accent.WithAlpha(0.16f), IGraphics::CORNER_ALL, CornerRadius);
+		}
+		else
+		{
+			Item.m_Rect.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.33f), IGraphics::CORNER_ALL, CornerRadius);
+		}
 	}
 
 	return Item;
