@@ -51,6 +51,12 @@ public:
 	static ColorRGBA ForjaNeonAccentColor();
 	/** Soft neon glow behind a menu rect when fj_neon is enabled. */
 	static void DrawForjaNeonGlow(const CUIRect *pRect, int Corners, float Rounding, float Boost = 1.0f);
+	/** Neon perimeter glow around the client window / screen edge. */
+	void DrawForjaWindowPerimeterGlow();
+	/** True when fj_bg Light preset is active (needs dark text). */
+	static bool ForjaBgIsLight();
+	/** Panel fill color for neon-styled buttons under current fj_bg. */
+	static ColorRGBA ForjaPanelColor(float Alpha = 0.55f);
 
 	int DoButton_Toggle(const void *pId, int Checked, const CUIRect *pRect, bool Active, unsigned Flags = BUTTONFLAG_LEFT);
 	int DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText, int Checked, const CUIRect *pRect, unsigned Flags = BUTTONFLAG_LEFT, const char *pImageName = nullptr, int Corners = IGraphics::CORNER_ALL, float Rounding = 5.0f, float FontFactor = 0.0f, ColorRGBA Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f), const void *pImageHotId = nullptr);
@@ -622,6 +628,7 @@ protected:
 	bool m_SkinPartListNeedsUpdate = false;
 
 	std::vector<CButtonContainer> m_vButtonContainersNamePlateShow = {{}, {}, {}, {}};
+	std::vector<CButtonContainer> m_vButtonContainersFjBg = {{}, {}, {}, {}};
 	std::vector<CButtonContainer> m_vButtonContainersNamePlateKeyPresses = {{}, {}, {}, {}};
 	std::vector<CButtonContainer> m_vButtonContainersAntiPingPlayers = {{}, {}, {}};
 

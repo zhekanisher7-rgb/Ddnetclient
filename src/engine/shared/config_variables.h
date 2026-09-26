@@ -240,6 +240,7 @@ MACRO_CONFIG_COL(UiColor, ui_color, 0xE4A046AF, CFGFLAG_CLIENT | CFGFLAG_SAVE | 
 MACRO_CONFIG_INT(FjNeon, fj_neon, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable Forja neon glow accents on menu UI")
 MACRO_CONFIG_COL(FjNeonColor, fj_neon_color, 0xE600FF96, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_COLALPHA, "Forja neon accent color")
 MACRO_CONFIG_INT(FjNeonStrength, fj_neon_strength, 70, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Forja neon glow strength (0-100)")
+MACRO_CONFIG_INT(FjBg, fj_bg, 1, 0, 3, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Forja background preset: 0=OLED 1=Dark 2=Light 3=Blue")
 
 MACRO_CONFIG_INT(UiColorizePing, ui_colorize_ping, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Highlight ping")
 MACRO_CONFIG_INT(UiColorizeGametype, ui_colorize_gametype, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Highlight gametype")

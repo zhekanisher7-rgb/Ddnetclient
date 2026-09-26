@@ -46,10 +46,13 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
 	// ***** Forja Neon (client fork visuals) ***** //
 	{
 		CUIRect NeonBox;
-		MainView.HSplitTop(78.0f, &NeonBox, &MainView);
-		NeonBox.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, g_Config.m_FjNeon ? 0.45f : 0.25f), IGraphics::CORNER_ALL, 5.0f);
+		MainView.HSplitTop(138.0f, &NeonBox, &MainView);
+		const ColorRGBA NeonPanel = ForjaBgIsLight() ?
+			ColorRGBA(1.0f, 1.0f, 1.0f, 0.55f) :
+			ColorRGBA(0.0f, 0.0f, 0.0f, g_Config.m_FjNeon ? 0.45f : 0.25f);
+		NeonBox.Draw(NeonPanel, IGraphics::CORNER_ALL, 5.0f);
 		if(g_Config.m_FjNeon)
-			DrawForjaNeonGlow(&NeonBox, IGraphics::CORNER_ALL, 5.0f, 0.6f);
+			DrawForjaNeonGlow(&NeonBox, IGraphics::CORNER_ALL, 5.0f, 0.75f);
 		NeonBox.Margin(6.0f, &NeonBox);
 
 		CUIRect NeonTitle, NeonRow;
@@ -64,6 +67,13 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
 		NeonBox.HSplitTop(4.0f, nullptr, &NeonBox);
 		NeonBox.HSplitTop(20.0f, &NeonRow, &NeonBox);
 		Ui()->DoScrollbarOption(&g_Config.m_FjNeonStrength, &g_Config.m_FjNeonStrength, &NeonRow, Localize("Neon strength"), 0, 100);
+
+		NeonBox.HSplitTop(2.0f, nullptr, &NeonBox);
+		DoLine_RadioMenu(NeonBox, Localize("Background"),
+			m_vButtonContainersFjBg,
+			{Localize("OLED", "Forja background"), Localize("Dark", "Forja background"), Localize("Light", "Forja background"), Localize("Blue", "Forja background")},
+			{0, 1, 2, 3},
+			g_Config.m_FjBg);
 
 		MainView.HSplitTop(8.0f, nullptr, &MainView);
 

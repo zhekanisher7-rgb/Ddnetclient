@@ -8,7 +8,8 @@ Visuals only — no cheats, aimbots, or gameplay advantages.
 
 ## Downloads / Скачать
 
-**Release:** [v20.0-forja-neon](https://github.com/zhekanisher7-rgb/Ddnetclient/releases/tag/v20.0-forja-neon)
+**Release:** [v20.1-forja-neon](https://github.com/zhekanisher7-rgb/Ddnetclient/releases/tag/v20.1-forja-neon)  
+(Previous: [v20.0-forja-neon](https://github.com/zhekanisher7-rgb/Ddnetclient/releases/tag/v20.0-forja-neon))
 
 | Platform | Asset | Install |
 |----------|-------|---------|
@@ -49,12 +50,18 @@ CI builds (Windows / macOS / Linux) are produced by [`.github/workflows/release.
 | Area | Change |
 |------|--------|
 | Menu buttons / tabs | Soft multi-pass outer glow (`CUIRect::DrawNeonGlow`) in accent color |
+| Button feedback | Soft scale on hover, dim/scale on press, lerped over a few frames |
 | List selection | Neon highlight instead of plain white wash |
-| Colors | Darker tab/panel tint when neon is on (`UpdateColors`) |
+| Background presets | OLED / Dark / Light / Blue (`fj_bg`) applied across menus |
+| Window perimeter | Neon outline along the client screen edge |
+| Play / browser panel | Neon glow border around the server browser (“Play”) panel |
+| Colors | Theme-aware tab/panel tint (`UpdateColors`) |
 | Branding | “Forja Neon” mark on the start menu |
-| Settings | Toggle + strength + accent color under **Settings → Appearance** (also a checkbox near UI Color in Graphics) |
+| Settings | Toggle + strength + accent color + background under **Settings → Appearance** |
 
 Glow is **fake neon** (translucent expanding rounded rects), not a real bloom shader — intentional, rebase-friendly.
+
+**RU кратко:** пресеты фона (OLED/Тёмный/Светлый/Синий), цвет и сила свечения, анимация кнопок, неоновая рамка окна и панели Play — всё в **Настройки → Внешний вид**.
 
 ---
 
@@ -64,7 +71,17 @@ Glow is **fake neon** (translucent expanding rounded rects), not a real bloom sh
 |---------------|---------|-------------|
 | `fj_neon` | `1` | Enable neon glow (0/1) |
 | `fj_neon_color` | `0xE600FF96` | Accent color (packed HSLA+alpha). Default ≈ `#ff2d2d` red |
-| `fj_neon_strength` | `70` | Glow strength 0–100 |
+| `fj_neon_strength` | `70` | Glow strength 0–100 (buttons, perimeter, Play panel) |
+| `fj_bg` | `1` | Background preset: `0` OLED, `1` Dark, `2` Light, `3` Blue |
+
+### Background presets / Пресеты фона
+
+| `fj_bg` | Name | Look |
+|---------|------|------|
+| `0` | **OLED** | Near-black `#000000` / `#050505` |
+| `1` | **Dark** | Dark charcoal (classic Forja Neon) |
+| `2` | **Light** | Light gray/white panels, dark readable text |
+| `3` | **Blue** | Deep navy / blue-tinted dark |
 
 Example `settings_ddnet.cfg` / launcher `-f` snippet:
 
@@ -72,11 +89,12 @@ Example `settings_ddnet.cfg` / launcher `-f` snippet:
 fj_neon 1
 fj_neon_strength 80
 fj_neon_color 3858825110
+fj_bg 0
 ```
 
 (`3858825110` = `0xE600FF96` unsigned.)
 
-Also still works with stock `ui_color` for overall interface tint.
+Also still works with stock `ui_color` for overall interface tint (Dark preset blends with it).
 
 ---
 
@@ -118,7 +136,7 @@ cd build   # or extracted package dir
 ./DDNet
 # or
 ./DDNet -f /path/to/neon.cfg
-./DDNet 'fj_neon 1' 'fj_neon_strength 90'
+./DDNet 'fj_neon 1' 'fj_neon_strength 90' 'fj_bg 0'
 ```
 
 Smoke-test without a real display:
@@ -143,19 +161,21 @@ Electron launcher: `/workspace/ddnet-launcher`
 fj_neon 1
 fj_neon_color <packed>
 fj_neon_strength 70
+fj_bg 1
 ```
 
 cwd for spawn must be the directory containing `data/` next to the binary (`build/`).
 
 ---
 
-## Files touched (Phase B)
+## Files touched
 
-- `src/engine/shared/config_variables.h` — `fj_neon*`
+- `src/engine/shared/config_variables.h` — `fj_neon*`, `fj_bg`
 - `src/game/client/ui_rect.{h,cpp}` — `DrawNeonGlow`
-- `src/game/client/components/menus.{h,cpp}` — helpers, button/tab glow, darker `UpdateColors`
+- `src/game/client/components/menus.{h,cpp}` — helpers, button anim, themes, window perimeter
 - `src/game/client/ui_listbox.cpp` — selected/hot row glow
 - `src/game/client/components/menus_start.cpp` — Forja Neon mark
+- `src/game/client/components/menus_browser.cpp` — Play/server browser perimeter glow
 - `src/game/client/components/menus_settings_appearance.cpp` — settings UI
 - `src/game/client/components/menus_settings_graphics.cpp` — quick toggle
 

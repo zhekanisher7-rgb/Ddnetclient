@@ -46,15 +46,20 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		{
 			const ColorRGBA Accent = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true));
 			BrandMark.DrawNeonGlow(Accent, IGraphics::CORNER_ALL, 6.0f, g_Config.m_FjNeonStrength / 100.0f);
-			BrandMark.Draw(ColorRGBA(0.02f, 0.02f, 0.04f, 0.65f), IGraphics::CORNER_ALL, 6.0f);
+			BrandMark.Draw(CMenus::ForjaPanelColor(0.65f), IGraphics::CORNER_ALL, 6.0f);
 			BrandMark.Draw(Accent.WithAlpha(0.20f), IGraphics::CORNER_ALL, 6.0f);
 		}
 		else
 		{
-			BrandMark.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.35f), IGraphics::CORNER_ALL, 6.0f);
+			BrandMark.Draw(CMenus::ForjaPanelColor(0.35f), IGraphics::CORNER_ALL, 6.0f);
 		}
 		SLabelProperties BrandProps;
-		BrandProps.SetColor(g_Config.m_FjNeon ? color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true)) : ColorRGBA(1.0f, 1.0f, 1.0f, 0.85f));
+		if(g_Config.m_FjNeon)
+			BrandProps.SetColor(color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true)));
+		else if(CMenus::ForjaBgIsLight())
+			BrandProps.SetColor(ColorRGBA(0.12f, 0.12f, 0.15f, 0.9f));
+		else
+			BrandProps.SetColor(ColorRGBA(1.0f, 1.0f, 1.0f, 0.85f));
 		Ui()->DoLabel(&BrandMark, "Forja Neon", 14.0f, TEXTALIGN_MC, BrandProps);
 	}
 

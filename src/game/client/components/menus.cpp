@@ -41,6 +41,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <unordered_map>
 #include <vector>
 
 using namespace std::chrono_literals;
@@ -51,6 +52,26 @@ ColorRGBA CMenus::ForjaNeonAccentColor()
 	return color_cast<ColorRGBA>(ColorHSLA(g_Config.m_FjNeonColor, true));
 }
 
+bool CMenus::ForjaBgIsLight()
+{
+	return g_Config.m_FjBg == 2;
+}
+
+ColorRGBA CMenus::ForjaPanelColor(float Alpha)
+{
+	switch(g_Config.m_FjBg)
+	{
+	case 0: // OLED
+		return ColorRGBA(0.02f, 0.02f, 0.02f, Alpha);
+	case 2: // Light
+		return ColorRGBA(0.94f, 0.94f, 0.96f, std::min(1.0f, Alpha + 0.25f));
+	case 3: // Blue
+		return ColorRGBA(0.04f, 0.07f, 0.14f, Alpha);
+	default: // Dark
+		return ColorRGBA(0.05f, 0.05f, 0.07f, Alpha);
+	}
+}
+
 void CMenus::DrawForjaNeonGlow(const CUIRect *pRect, int Corners, float Rounding, float Boost)
 {
 	if(!g_Config.m_FjNeon || pRect == nullptr)
@@ -59,6 +80,25 @@ void CMenus::DrawForjaNeonGlow(const CUIRect *pRect, int Corners, float Rounding
 	if(Strength <= 0.01f)
 		return;
 	pRect->DrawNeonGlow(ForjaNeonAccentColor(), Corners, Rounding, Strength);
+}
+
+void CMenus::DrawForjaWindowPerimeterGlow()
+{
+	if(!g_Config.m_FjNeon)
+		return;
+	const float Strength = g_Config.m_FjNeonStrength / 100.0f;
+	if(Strength <= 0.01f)
+		return;
+
+	// Inset so the expanding glow stays visible inside the client window
+	CUIRect Border = *Ui()->Screen();
+	const float Inset = 3.0f + Strength * 2.0f;
+	Border.Margin(Inset, &Border);
+	Border.DrawNeonGlow(ForjaNeonAccentColor(), IGraphics::CORNER_ALL, 6.0f, Strength * 1.35f);
+
+	// Thin crisp inner edge
+	const ColorRGBA Accent = ForjaNeonAccentColor().WithAlpha(0.35f + Strength * 0.35f);
+	Border.DrawOutline(Accent);
 }
 
 ColorRGBA CMenus::ms_GuiColor;
@@ -140,45 +180,77 @@ int CMenus::DoButton_Toggle(const void *pId, int Checked, const CUIRect *pRect, 
 
 int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText, int Checked, const CUIRect *pRect, const unsigned Flags, const char *pImageName, int Corners, float Rounding, float FontFactor, ColorRGBA Color, const void *pImageHotId)
 {
-	CUIRect Text = *pRect;
+	// Soft hover / press animation (lerp over a few frames)
+	static std::unordered_map<const void *, float> s_HoverAnim;
+	static std::unordered_map<const void *, float> s_PressAnim;
+	const bool Hot = Ui()->HotItem() == pButtonContainer;
+	const bool Pressed = Ui()->ActiveItem() == pButtonContainer;
+	float &Hover = s_HoverAnim[pButtonContainer];
+	float &Press = s_PressAnim[pButtonContainer];
+	const float AnimSpeed = 0.28f;
+	Hover += ((Hot ? 1.0f : 0.0f) - Hover) * AnimSpeed;
+	Press += ((Pressed ? 1.0f : 0.0f) - Press) * AnimSpeed;
+	if(Hover < 0.001f)
+		Hover = 0.0f;
+	if(Press < 0.001f)
+		Press = 0.0f;
+
+	const float Scale = 1.0f + Hover * 0.025f - Press * 0.04f;
+	CUIRect DrawRect = *pRect;
+	{
+		const float Dw = DrawRect.w * (Scale - 1.0f) * 0.5f;
+		const float Dh = DrawRect.h * (Scale - 1.0f) * 0.5f;
+		DrawRect.x -= Dw;
+		DrawRect.y -= Dh;
+		DrawRect.w += Dw * 2.0f;
+		DrawRect.h += Dh * 2.0f;
+	}
+	CUIRect Text = DrawRect;
 
 	if(Checked)
 	{
 		if(g_Config.m_FjNeon)
 		{
 			const ColorRGBA Accent = ForjaNeonAccentColor();
-			Color = ColorRGBA(Accent.r * 0.35f, Accent.g * 0.35f, Accent.b * 0.35f, 0.55f);
+			if(ForjaBgIsLight())
+				Color = ColorRGBA(Accent.r * 0.55f + 0.55f, Accent.g * 0.55f + 0.55f, Accent.b * 0.55f + 0.55f, 0.85f);
+			else
+				Color = ColorRGBA(Accent.r * 0.35f, Accent.g * 0.35f, Accent.b * 0.35f, 0.55f);
 		}
 		else
 			Color = ColorRGBA(0.6f, 0.6f, 0.6f, 0.5f);
 	}
 	else if(g_Config.m_FjNeon && Color.r > 0.9f && Color.g > 0.9f && Color.b > 0.9f)
 	{
-		// Default bright button wash → darker neon-friendly panel
-		Color = ColorRGBA(0.05f, 0.05f, 0.07f, 0.55f);
+		// Default bright button wash → theme panel
+		Color = ForjaPanelColor(0.55f);
 	}
 	else if(g_Config.m_FjNeon && Color.r < 0.05f && Color.g < 0.05f && Color.b < 0.05f)
 	{
-		// Already-black start-menu style buttons: slightly deeper
-		Color = ColorRGBA(0.02f, 0.02f, 0.04f, std::max(Color.a, 0.35f));
+		// Start-menu style buttons: follow background preset
+		Color = ForjaPanelColor(std::max(Color.a, 0.35f));
 	}
+
+	// Press dims slightly; hover brightens via ButtonColorMul + glow pulse
 	Color.a *= Ui()->ButtonColorMul(pButtonContainer);
+	if(Press > 0.01f)
+		Color.a *= (1.0f - Press * 0.25f);
 
-	const float GlowBoost = Checked ? 1.15f : (Ui()->HotItem() == pButtonContainer ? 1.0f : 0.7f);
-	DrawForjaNeonGlow(pRect, Corners, Rounding, GlowBoost);
+	const float GlowBoost = (Checked ? 1.15f : 0.7f) + Hover * 0.45f;
+	DrawForjaNeonGlow(&DrawRect, Corners, Rounding, GlowBoost);
 
-	pRect->Draw(Color, Corners, Rounding);
+	DrawRect.Draw(Color, Corners, Rounding);
 
 	if(pImageName)
 	{
 		CUIRect Image;
-		pRect->VSplitRight(pRect->h * BUTTON_IMAGE_WIDTH_FACTOR, &Text, &Image); // always correct ratio for image
+		DrawRect.VSplitRight(DrawRect.h * BUTTON_IMAGE_WIDTH_FACTOR, &Text, &Image); // always correct ratio for image
 
 		// render image
 		const CMenuImage *pImage = FindMenuImage(pImageName);
 		if(pImage)
 		{
-			const bool ImageHot = Ui()->HotItem() == pButtonContainer || (pImageHotId != nullptr && Ui()->HotItem() == pImageHotId);
+			const bool ImageHot = Hot || (pImageHotId != nullptr && Ui()->HotItem() == pImageHotId);
 			Graphics()->TextureSet(ImageHot ? pImage->m_OrgTexture : pImage->m_GreyTexture);
 			Graphics()->WrapClamp();
 			Graphics()->QuadsBegin();
@@ -190,7 +262,7 @@ int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText,
 		}
 	}
 
-	Text.HMargin(pRect->h >= 20.0f ? 2.0f : 1.0f, &Text);
+	Text.HMargin(DrawRect.h >= 20.0f ? 2.0f : 1.0f, &Text);
 	Text.HMargin((Text.h * FontFactor) / 2.0f, &Text);
 	Ui()->DoLabel(&Text, pText, Text.h * CUi::ms_FontmodHeight, TEXTALIGN_MC);
 
@@ -1221,6 +1293,10 @@ void CMenus::Render()
 	{
 		m_ShowStart = true;
 	}
+
+	// Neon outline around the entire client window / UI perimeter
+	if(IsActive())
+		DrawForjaWindowPerimeterGlow();
 }
 
 void CMenus::RenderPopupFullscreen(CUIRect Screen)
@@ -2456,6 +2532,15 @@ void CMenus::OnRender()
 	Ui()->StartCheck();
 	UpdateColors();
 
+	// Light background preset: dark readable labels across menus
+	const ColorRGBA PrevTextColor = TextRender()->GetTextColor();
+	const ColorRGBA PrevOutlineColor = TextRender()->GetTextOutlineColor();
+	if(ForjaBgIsLight() && IsActive())
+	{
+		TextRender()->TextColor(0.12f, 0.12f, 0.15f, 1.0f);
+		TextRender()->TextOutlineColor(1.0f, 1.0f, 1.0f, 0.15f);
+	}
+
 	Ui()->Update();
 
 	if(IsActive())
@@ -2468,6 +2553,9 @@ void CMenus::OnRender()
 		Ui()->RenderBackButton();
 		RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
 	}
+
+	TextRender()->TextColor(PrevTextColor);
+	TextRender()->TextOutlineColor(PrevOutlineColor);
 
 	// render debug information
 	if(g_Config.m_Debug)
@@ -2483,59 +2571,87 @@ void CMenus::OnRender()
 void CMenus::UpdateColors()
 {
 	ms_GuiColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
+	const ColorRGBA Accent = ForjaNeonAccentColor();
+	const int Bg = g_Config.m_FjBg;
 
-	if(g_Config.m_FjNeon)
+	// Background presets (apply with or without neon; neon only adds accent tint)
+	switch(Bg)
 	{
-		// Darker chrome; accents come from DrawForjaNeonGlow / overlays
-		const ColorRGBA Accent = ForjaNeonAccentColor();
-		ms_GuiColor = ColorRGBA(
-			ms_GuiColor.r * 0.45f + Accent.r * 0.08f,
-			ms_GuiColor.g * 0.45f + Accent.g * 0.08f,
-			ms_GuiColor.b * 0.45f + Accent.b * 0.08f,
-			std::min(1.0f, ms_GuiColor.a * 1.05f));
+	case 0: // OLED near-black
+		ms_GuiColor = ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f);
+		if(g_Config.m_FjNeon)
+			ms_GuiColor = ColorRGBA(Accent.r * 0.03f, Accent.g * 0.03f, Accent.b * 0.03f, 1.0f);
+		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.55f);
+		ms_ColorTabbarActiveOutgame = ColorRGBA(0.02f, 0.02f, 0.02f, 0.85f);
+		ms_ColorTabbarHoverOutgame = g_Config.m_FjNeon ? Accent.WithAlpha(0.22f) : ColorRGBA(1.0f, 1.0f, 1.0f, 0.18f);
+		break;
+	case 2: // Light
+		ms_GuiColor = ColorRGBA(0.90f, 0.90f, 0.92f, 1.0f);
+		if(g_Config.m_FjNeon)
+			ms_GuiColor = ColorRGBA(0.90f + Accent.r * 0.04f, 0.90f + Accent.g * 0.04f, 0.92f + Accent.b * 0.04f, 1.0f);
+		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.78f, 0.78f, 0.82f, 0.70f);
+		ms_ColorTabbarActiveOutgame = ColorRGBA(0.97f, 0.97f, 0.98f, 0.95f);
+		ms_ColorTabbarHoverOutgame = g_Config.m_FjNeon ? Accent.WithAlpha(0.28f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.12f);
+		break;
+	case 3: // Blue / deep navy
+		ms_GuiColor = ColorRGBA(0.03f, 0.06f, 0.14f, 1.0f);
+		if(g_Config.m_FjNeon)
+			ms_GuiColor = ColorRGBA(0.03f + Accent.r * 0.05f, 0.06f + Accent.g * 0.04f, 0.14f + Accent.b * 0.08f, 1.0f);
+		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.02f, 0.04f, 0.10f, 0.50f);
+		ms_ColorTabbarActiveOutgame = ColorRGBA(0.05f, 0.10f, 0.22f, 0.78f);
+		ms_ColorTabbarHoverOutgame = g_Config.m_FjNeon ? Accent.WithAlpha(0.22f) : ColorRGBA(0.3f, 0.5f, 0.9f, 0.22f);
+		break;
+	default: // Dark charcoal (current neon look / classic)
+		if(g_Config.m_FjNeon)
+		{
+			ms_GuiColor = ColorRGBA(
+				ms_GuiColor.r * 0.45f + Accent.r * 0.08f,
+				ms_GuiColor.g * 0.45f + Accent.g * 0.08f,
+				ms_GuiColor.b * 0.45f + Accent.b * 0.08f,
+				std::min(1.0f, ms_GuiColor.a * 1.05f));
+			ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.40f);
+			ms_ColorTabbarActiveOutgame = ColorRGBA(0.02f, 0.02f, 0.04f, 0.72f);
+			ms_ColorTabbarHoverOutgame = Accent.WithAlpha(0.22f);
+		}
+		else
+		{
+			ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f);
+			ms_ColorTabbarActiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f);
+			ms_ColorTabbarHoverOutgame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f);
+		}
+		break;
+	}
 
-		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.40f);
-		ms_ColorTabbarActiveOutgame = ColorRGBA(0.02f, 0.02f, 0.04f, 0.72f);
-		ms_ColorTabbarHoverOutgame = Accent.WithAlpha(0.22f);
+	const float ColorIngameScaleI = (Bg == 2) ? 0.55f : (g_Config.m_FjNeon ? 0.28f : 0.5f);
+	const float ColorIngameScaleA = (Bg == 2) ? 0.35f : (g_Config.m_FjNeon ? 0.12f : 0.2f);
 
-		const float ColorIngameScaleI = 0.28f;
-		const float ColorIngameScaleA = 0.12f;
+	ms_ColorTabbarInactiveIngame = ColorRGBA(
+		ms_GuiColor.r * ColorIngameScaleI,
+		ms_GuiColor.g * ColorIngameScaleI,
+		ms_GuiColor.b * ColorIngameScaleI,
+		ms_GuiColor.a * ((Bg == 2) ? 0.85f : (g_Config.m_FjNeon ? 0.9f : 0.8f)));
 
-		ms_ColorTabbarInactiveIngame = ColorRGBA(
-			ms_GuiColor.r * ColorIngameScaleI,
-			ms_GuiColor.g * ColorIngameScaleI,
-			ms_GuiColor.b * ColorIngameScaleI,
-			ms_GuiColor.a * 0.9f);
-
+	if(g_Config.m_FjNeon && Bg != 2)
+	{
 		ms_ColorTabbarActiveIngame = ColorRGBA(
 			ms_GuiColor.r * ColorIngameScaleA + Accent.r * 0.15f,
 			ms_GuiColor.g * ColorIngameScaleA + Accent.g * 0.15f,
 			ms_GuiColor.b * ColorIngameScaleA + Accent.b * 0.15f,
 			ms_GuiColor.a);
-
 		ms_ColorTabbarHoverIngame = Accent.WithAlpha(0.45f);
+	}
+	else if(Bg == 2)
+	{
+		ms_ColorTabbarActiveIngame = ColorRGBA(0.95f, 0.95f, 0.97f, 0.92f);
+		ms_ColorTabbarHoverIngame = g_Config.m_FjNeon ? Accent.WithAlpha(0.35f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.20f);
 	}
 	else
 	{
-		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f);
-		ms_ColorTabbarActiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f);
-		ms_ColorTabbarHoverOutgame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f);
-
-		const float ColorIngameScaleI = 0.5f;
-		const float ColorIngameScaleA = 0.2f;
-
-		ms_ColorTabbarInactiveIngame = ColorRGBA(
-			ms_GuiColor.r * ColorIngameScaleI,
-			ms_GuiColor.g * ColorIngameScaleI,
-			ms_GuiColor.b * ColorIngameScaleI,
-			ms_GuiColor.a * 0.8f);
-
 		ms_ColorTabbarActiveIngame = ColorRGBA(
 			ms_GuiColor.r * ColorIngameScaleA,
 			ms_GuiColor.g * ColorIngameScaleA,
 			ms_GuiColor.b * ColorIngameScaleA,
 			ms_GuiColor.a);
-
 		ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
 	}
 }
@@ -2557,7 +2673,14 @@ void CMenus::RenderBackground()
 	// render the tiles
 	Graphics()->TextureClear();
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.045f);
+	if(g_Config.m_FjBg == 0)
+		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.018f); // subtle OLED grid
+	else if(g_Config.m_FjBg == 2)
+		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.035f);
+	else if(g_Config.m_FjBg == 3)
+		Graphics()->SetColor(0.0f, 0.1f, 0.25f, 0.06f);
+	else
+		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.045f);
 	const float Size = 15.0f;
 	const float OffsetTime = std::fmod(Client()->GlobalTime() * 0.15f, 2.0f);
 	IGraphics::CQuadItem aCheckerItems[64];

@@ -10,7 +10,7 @@ on:
       release_tag:
         description: "Release tag to attach assets to"
         type: string
-        default: "v20.0-forja-neon"
+        default: "v20.1-forja-neon"
   push:
     tags:
       - "v*"

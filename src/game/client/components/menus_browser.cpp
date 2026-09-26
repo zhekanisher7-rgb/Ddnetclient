@@ -1860,6 +1860,8 @@ void CMenus::RenderServerbrowser(CUIRect MainView)
 	// clang-format on
 
 	CUIRect ServerList, StatusBox, ToolBox, TabBar;
+	// Forja Neon: glow border around the Play / server browser panel
+	DrawForjaNeonGlow(&MainView, IGraphics::CORNER_B, 10.0f, 1.15f);
 	MainView.Draw(ms_ColorTabbarActive, IGraphics::CORNER_B, 10.0f);
 	MainView.Margin(10.0f, &MainView);
 	MainView.VSplitRight(205.0f, &ServerList, &ToolBox);
